@@ -26,7 +26,7 @@ Quanto ao processador escalar e superescalar, deixaremos o pipeline de tamanho 5
 
 Para analizar os hazards, iremos utilizar pipeline escalar de 5 estágios, adicionando mais ciclos quando ocorrem hazard de dados e controle, simulando o processador sem forwarding e com forwarding de dados.
 
-### Cache
+#### Cache
 As configurações de cache avaliadas serão as mostradas na tabela abaixo.
 
 | Configuração | L1size | L1block | Associatividade L1 | L2size | L2block | Associatividade L2 |
@@ -36,7 +36,7 @@ As configurações de cache avaliadas serão as mostradas na tabela abaixo.
 |       3      |   64   |   128   |          2         |  1024  |   2048  |          2         |
 |       4      |   64   |   128   |          2         |  1024  |   2048  |          4         |
 
-### Branch Predictor
+#### Branch Predictor
 Utilizando as configurações anteriores, utilizaremos os seguintes branch predictors:
 
 * Always taken
