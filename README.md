@@ -22,23 +22,31 @@ Para escolha de tamanho de pipeline será contado o número de ciclos, sem outra
 
 Quanto ao processador escalar e superescalar, deixaremos o pipeline de tamanho 5 e então contabilizaremos o numero de ciclos para cada um.
 
-#### Hazard de dados e controle
+#### Hazards
 
 Para analizar os hazards, iremos utilizar pipeline escalar de 5 estágios, adicionando mais ciclos quando ocorrem hazard de dados e controle, simulando o processador sem forwarding e com forwarding de dados.
+Para os casos em que ocorre Hazard de dados do tipo RAW, será adicionado um ciclo de stall. No caso com forwarding, isso não irá ocorrer e nenhum ciclo adicional será contabilizado.
+Nos casos de Hazard de dados do tipo WAR será contabilizado um ciclo adicional
+Já nos casos de WAW serão contabilizados dois ciclos adicionais.
+No processador superescalar, haverá um outro tipo de hazard se duas instruções dependentes estiverem na mesma etapa do ciclo. Nessa caso serão contabilizados cinco ciclos adicionais.
+Quando ocorre acesso à memória do tipo load e store serão adicionados cinco ciclos.
 
+
+Hazards de controle ocorrem quando não tem branch predictor ou quando o branch predictor erra na predição. Nesse caso serão adicionados o número de ciclos 
 #### Cache
 As configurações de cache avaliadas serão as mostradas na tabela abaixo.
 
-| Configuração | L1size | L1block | Associatividade L1 | L2size | L2block | Associatividade L2 |
+| Configuração | L1usize | L1block | Associatividade L1 | L2usize | L2block | Associatividade L2 |
 |:------------:|:------:|:-------:|:------------------:|:------:|:-------:|:------------------:|
 |       1      |   32   |    64   |          2         |   256  |   1024  |          2         |
 |       2      |   64   |   128   |          2         |   512  |   1024  |          2         |
-|       3      |   64   |   128   |          2         |  1024  |   2048  |          2         |
-|       4      |   64   |   128   |          2         |  1024  |   2048  |          4         |
+|       3      |   128  |   128   |          2         |  1024  |   2048  |          2         |
+|       4      |   128  |   128   |          2         |  1024  |   2048  |          4         |
 
 #### Branch Predictor
 Utilizando as configurações anteriores, utilizaremos os seguintes branch predictors:
 
+* Sem branch predictor
 * Always taken
 * 1 bit,indicador de taken
 
@@ -63,5 +71,6 @@ Para avaliar os experimentos, levaremos em consideração os seguintes eventos:
 * Configuração 8: Pipeline 5 estágios escalar, com forwarding e branch predictor always taken, e configuração 4 de cache.
 * Configuração 9: Pipeline 5 estágios escalar, com forwarding e branch predictor 1 bit indicator, e configuração 1 de cache.
 * Configuração 10: Pipeline 5 estágios escalar, sem forwarding e com branch predictor always taken, e configuração 1 de cache.
+* Configuração 11: Pipeline 5 estágios escalar, sem forwarding e sem branch predictor, e configuração 1 de cache.
 
 Dessa forma, cada critério escolhido pode ser avaliado de modo independente.
