@@ -24,11 +24,7 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
-
-#include <string>
-
-
- FILE * pFile;
+FILE * pFile;
 
 /* Variaveis de configuração */
 // Tipo de branch predictor (um ou outro, ou nenhum)
@@ -36,6 +32,8 @@ bool branch_predictor = false;
 bool branch_always_not_taken = false;
 // Com ou sem forwarding
 bool forwarding = false;
+// Superscalar
+bool superscalar = false;
 
 /* Contadores */
 // Contador de Ciclos
@@ -46,8 +44,10 @@ long intr = 0;
 /* Hazards */
 // Contador de stalls de dados
 long data_stalls = 0;
+
 // Salva instruções anteriores na struct instruction
 typedef struct instruction {
+	int type; // tipo da instrução (0-aritmetica, 1-load)
 	int w; // numero do registrador usado para escrita (-1 se nao for usado)
 	int r1; // numero do registrador usado para leitura (-1 se nao for usado)
 	int r2; // numero do registrador usado para leitura (-1 se nao for usado)
@@ -55,49 +55,108 @@ typedef struct instruction {
 
 // Salva as duas instruções anteriores
 instruction previous_instr[2]; // 1 = instrução anterior, 0 = instrução antes da anterior
+instruction previous_instr2[2]; //1 = instrução anterior, 0 = instrução antes da anterior
+instruction instr2; // instrução no mesmo estagio do pipeline
 
 // Cria uma struct com os valores w, r1 e r2
-instruction create_instr(int w, int r1, int r2) {
+instruction create_instr(int t, int w, int r1, int r2) {
 	instruction new_instruction;
+	new_instruction.type = t;
 	new_instruction.w = w;
 	new_instruction.r1 = r1;
 	new_instruction.r2 = r2;
 	return new_instruction;
 }
-	
+
 // Atualiza possíveis hazards
-// TODO: Tem que adicionar possíveis hazards de processador superescalar / varios estagios
+// TODO: Tem que adicionar possíveis hazards de processador com varios estagios
 void update_data_hazard(instruction instr) {
-	// Se nao tiver forwarding verifica os stalls necessarios
-	if (!forwarding) {
-		// Verifica se le em r1 algum registrador que foi escrito por uma das previous_instr
-		if (instr.r1 > 0) { 
-			if (instr.r1 == previous_instr[1].w) {// Dois stalls
-				data_stalls += 2;
-				cycles += 2;
+	// Se nao for superescalarar
+	if (!superscalar) {
+		// Se nao tiver forwarding verifica os stalls necessarios
+		if (!forwarding) {
+			// Verifica se le em r1 algum registrador que foi escrito por uma das previous_instr
+			if (instr.r1 > 0) { 
+				if (instr.r1 == previous_instr[1].w) {// Dois stalls
+					data_stalls += 2;
+					cycles += 2;
+				}
+				else if (instr.r1 == previous_instr[0].w) { // Um stall
+					data_stalls += 1;
+					cycles += 1;
+				}
 			}
-			else if (instr.r1 == previous_instr[0].w) { // Um stall
-				data_stalls += 1;
-				cycles += 1;
+			// Verifica se le em rt algum registrador que foi escrito por uma das previous_instr
+			else if (instr.r2 > 0) { 
+				if (instr.r2 == previous_instr[1].w) {// Dois stalls
+					data_stalls += 2;
+					cycles += 2;
+				}
+				else if (instr.r2 == previous_instr[0].w) { // Um stall
+					data_stalls += 1;
+					cycles += 1;
+				}
 			}
 		}
-		// Verifica se le em rt algum registrador que foi escrito por uma das previous_instr
-		else if (instr.r2 > 0) { 
-			if (instr.r2 == previous_instr[1].w) {// Dois stalls
-				data_stalls += 2;
-				cycles += 2;
-			}
-			else if (instr.r2 == previous_instr[0].w) { // Um stall
-				data_stalls += 1;
-				cycles += 1;
+		// Com Forwarding
+		else {
+			if (previous_instr[1].type == 1) { // Load
+				if (instr.r1 == previous_instr[1].w) {
+					data_stalls += 1;
+					cycles += 1;
+				}
+				else if (instr.r2 == previous_instr[1].w) {
+					data_stalls += 1;
+					cycles += 1;
+				}
 			}
 		}
+		// Atualiza previous_instr
+		previous_instr[0] = previous_instr[1];
+		previous_instr[1] = instr;
 	}
-	// Atualiza previous_instr
-	previous_instr[0] = previous_instr[1];
-	previous_instr[1] = instr;
+	// Processador superescalar (com forwarding)
+	else {
+		// RAW
+		if (previous_instr[1].type == 1) {
+			if (instr.r1 == previous_instr[1].w || instr2.r1 == previous_instr[1].w) {
+				data_stalls += 1;
+				cycles += 1;
+			}
+			else if (instr.r2 == previous_instr[1].w || instr2.r2 == previous_instr[1].w) {
+				data_stalls += 1;
+				cycles += 1;
+			}
+		}
+		if (previous_instr2[1].type == 1) {
+			if (instr.r1 == previous_instr2[1].w || instr2.r1 == previous_instr2[1].w) {
+				data_stalls += 1;
+				cycles += 1;
+			}
+			else if (instr.r2 == previous_instr2[1].w || instr2.r2 == previous_instr2[1].w) {
+				data_stalls += 1;
+				cycles += 1;
+			}
+		}
+		// WAR
+		if ((instr.r1 == instr2.w) || (instr.r2 = instr2.w)  || (instr2.r1 == instr.w) || (instr2.r2 = instr.w)) {
+			data_stalls += 1;
+			cycles += 1;
+		}
+		// WAW 
+		else if (instr.w == instr2.w) {
+			data_stalls += 1;
+			cycles += 1;
+		}
+		// Atualiza previous_instr
+		previous_instr[0] = previous_instr[1];
+		previous_instr[1] = instr;
+		previous_instr2[0] = previous_instr2[1];
+		previous_instr2[1] = instr2;
+
+	}
 }
-		
+
 
 /* Branch predictor */
 // Contador de branches corretos e incorretos
@@ -159,11 +218,11 @@ void branch_not_taken() {
 	}
 	last_branch = false; // atualiza ultimo branch como not taken
 }
-		
+
 
 
 //If you want debug information for this model, uncomment next line
-//#define DEBUG_MODEL
+#define DEBUG_MODEL
 #include "ac_debug_model.H"
 
 
@@ -181,12 +240,14 @@ static int processors_started = 0;
 //!Generic instruction behavior method.
 void ac_behavior( instruction )
 { 
+	intr++;
+	cycles++;
 	dbg_printf("----- PC=%#x ----- %lld\n", (int) ac_pc, ac_instr_counter);
 	//  dbg_printf("----- PC=%#x NPC=%#x ----- %lld\n", (int) ac_pc, (int)npc, ac_instr_counter);
 #ifndef NO_NEED_PC_UPDATE
 	ac_pc = npc;
 	npc = ac_pc + 4;
-#endif 
+# endif 
 	fprintf(pFile, "%d %x\n", 2, (int)ac_pc);
 };
 
@@ -211,19 +272,21 @@ void ac_behavior(begin)
 	lo = 0;
 
 	RB[29] =  AC_RAM_END - 1024 - processors_started++ * DEFAULT_STACK_SIZE;
-
 	//opens the file to write the trace
 	printf("INFO: Abriu arquivo de traces.\n");
 	pFile = fopen ("trace.din","w");
-	
 }
 
 //!Behavior called after finishing simulation
 void ac_behavior(end)
 {
+	if (superscalar) {
+		cycles /= 2;
+		data_stalls /= 2;
+	}
 	printf("Cycles: %d\n", cycles);
 	printf("Total Instructions: %d\n", intr);
-	printf("Total Stalled Instructions: %d\n", data_stalls + branch_stalls);
+	printf("Total Stalled Instructions: %d\n", data_stalls + branch_stalls + jump_stalls);
 	printf("|--Data Stalls: %d\n", data_stalls);
 	printf("|--Branch Stalls: %d\n", branch_stalls);
 	printf("|--Jump Stalls: %d\n", jump_stalls);
@@ -240,75 +303,63 @@ void ac_behavior(end)
 //!Instruction lb behavior method.
 void ac_behavior( lb )
 {
-	cycles = cycles+5;
-	intr++;
 	char byte;
 	dbg_printf("lb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	byte = DM.read_byte(RB[rs]+ imm);
 	RB[rt] = (ac_Sword)byte ;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lbu behavior method.
 void ac_behavior( lbu )
 {
-	cycles = cycles+5;
-	intr++;
 	unsigned char byte;
 	dbg_printf("lbu r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	byte = DM.read_byte(RB[rs]+ imm);
 	RB[rt] = byte ;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lh behavior method.
 void ac_behavior( lh )
 {
-	cycles = cycles+5;
-	intr++;
 	short int half;
 	dbg_printf("lh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	half = DM.read_half(RB[rs]+ imm);
 	RB[rt] = (ac_Sword)half ;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lhu behavior method.
 void ac_behavior( lhu )
 {
-	cycles = cycles+5;
-	intr++;
 	unsigned short int  half;
 	half = DM.read_half(RB[rs]+ imm);
 	RB[rt] = half ;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lw behavior method.
 void ac_behavior( lw )
 {
-	cycles = cycles+5;
-	intr++;
 	dbg_printf("lw r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	RB[rt] = DM.read(RB[rs]+ imm);
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lwl behavior method.
 void ac_behavior( lwl )
 {
-	cycles = cycles+5;
-	intr++;
 	dbg_printf("lwl r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	unsigned int addr, offset;
 	ac_Uword data;
@@ -320,15 +371,13 @@ void ac_behavior( lwl )
 	data |= RB[rt] & ((1<<offset)-1);
 	RB[rt] = data;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, addr & 0xFFFFFFFC);
 };
 
 //!Instruction lwr behavior method.
 void ac_behavior( lwr )
 {
-	cycles = cycles+5;
-	intr++;
 	dbg_printf("lwr r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	unsigned int addr, offset;
 	ac_Uword data;
@@ -340,56 +389,48 @@ void ac_behavior( lwr )
 	data |= RB[rt] & (0xFFFFFFFF << (32-offset));
 	RB[rt] = data;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, addr & 0xFFFFFFFC);
 };
 
 /**** STORES ****/
 //!Instruction sb behavior method.
 void ac_behavior( sb )
 {
-	cycles = cycles+5;
-	intr++;
 	unsigned char byte;
 	dbg_printf("sb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	byte = RB[rt] & 0xFF;
 	DM.write_byte(RB[rs] + imm, byte);
 	dbg_printf("Result = %#x\n", (int) byte);
-	update_data_hazard(create_instr(-1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
 };
 
 //!Instruction sh behavior method.
 void ac_behavior( sh )
 {
-	cycles = cycles+5;
-	intr++;
 	unsigned short int half;
 	dbg_printf("sh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	half = RB[rt] & 0xFFFF;
 	DM.write_half(RB[rs] + imm, half);
 	dbg_printf("Result = %#x\n", (int) half);
-	update_data_hazard(create_instr(-1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
 };
 
 //!Instruction sw behavior method.
 void ac_behavior( sw )
 {
-	cycles = cycles+5;
-	intr++;
 	dbg_printf("sw r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	DM.write(RB[rs] + imm, RB[rt]);
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(-1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
 };
 
 //!Instruction swl behavior method.
 void ac_behavior( swl )
 {
-	cycles = cycles+5;
-	intr++;
 	dbg_printf("swl r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	unsigned int addr, offset;
 	ac_Uword data;
@@ -401,15 +442,14 @@ void ac_behavior( swl )
 	data |= DM.read(addr & 0xFFFFFFFC) & (0xFFFFFFFF << (32-offset));
 	DM.write(addr & 0xFFFFFFFC, data);
 	dbg_printf("Result = %#x\n", data);
-	update_data_hazard(create_instr(-1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, addr & 0xFFFFFFFC);
 };
 
 //!Instruction swr behavior method.
 void ac_behavior( swr )
 {
-	cycles = cycles+5;
-	intr++;
+
 	dbg_printf("swr r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
 	unsigned int addr, offset;
 	ac_Uword data;
@@ -421,15 +461,14 @@ void ac_behavior( swr )
 	data |= DM.read(addr & 0xFFFFFFFC) & ((1<<offset)-1);
 	DM.write(addr & 0xFFFFFFFC, data);
 	dbg_printf("Result = %#x\n", data);
-	update_data_hazard(create_instr(-1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, addr & 0xFFFFFFFC);
 };
 
 /**** ADDI ****/
 //!Instruction addi behavior method.
 void ac_behavior( addi )
 {
-	cycles = cycles+1;
 	dbg_printf("addi r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	RB[rt] = RB[rs] + imm;
 	dbg_printf("Result = %#x\n", RB[rt]);
@@ -438,26 +477,22 @@ void ac_behavior( addi )
 			((imm & 0x80000000) != (RB[rt] & 0x80000000)) ) {
 		fprintf(stderr, "EXCEPTION(addi): integer overflow.\n"); exit(EXIT_FAILURE);
 	}
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rt, rs, -1));
 };
 
 //!Instruction addiu behavior method.
 void ac_behavior( addiu )
 {
-	cycles = cycles+1;
 	dbg_printf("addiu r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	RB[rt] = RB[rs] + imm;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rt, rs, -1));
 };
 
 /**** BIT OPERATIONS ****/
 //!Instruction slti behavior method.
 void ac_behavior( slti )
 {
-	cycles = cycles+1;
 	dbg_printf("slti r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	// Set the RD if RS< IMM
 	if( (ac_Sword) RB[rs] < (ac_Sword) imm )
@@ -466,14 +501,12 @@ void ac_behavior( slti )
 	else
 		RB[rt] = 0;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rt, rs, -1));
 };
 
 //!Instruction sltiu behavior method.
 void ac_behavior( sltiu )
 {
-	cycles = cycles+1;
 	dbg_printf("sltiu r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	// Set the RD if RS< IMM
 	if( (ac_Uword) RB[rs] < (ac_Uword) imm )
@@ -482,62 +515,52 @@ void ac_behavior( sltiu )
 	else
 		RB[rt] = 0;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rt, rs, -1));
 };
 
 //!Instruction andi behavior method.
 void ac_behavior( andi )
 {	
-	cycles = cycles+1;
 	dbg_printf("andi r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	RB[rt] = RB[rs] & (imm & 0xFFFF) ;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rt, rs, -1));
 };
 
 //!Instruction ori behavior method.
 void ac_behavior( ori )
 {	
-	cycles = cycles+1;
 	dbg_printf("ori r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	RB[rt] = RB[rs] | (imm & 0xFFFF) ;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rt, rs, -1));
 };
 
 //!Instruction xori behavior method.
 void ac_behavior( xori )
 {	
-	cycles = cycles+1;
 	dbg_printf("xori r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	RB[rt] = RB[rs] ^ (imm & 0xFFFF) ;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rt, rs, -1));
 };
 
 //!Instruction lui behavior method.
 void ac_behavior( lui )
 {	
-	cycles = cycles+1;
 	dbg_printf("lui r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	// Load a constant in the upper 16 bits of a register
 	// To achieve the desired behaviour, the constant was shifted 16 bits left
 	// and moved to the target register ( rt )
 	RB[rt] = imm << 16;
 	dbg_printf("Result = %#x\n", RB[rt]);
-	update_data_hazard(create_instr(rt, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(1, rt, rs, -1));
 };
 
 /**** ARITHMETIC ****/
 //!Instruction add behavior method.
 void ac_behavior( add )
 {
-	cycles = cycles+1;
 	dbg_printf("add r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = RB[rs] + RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
@@ -546,51 +569,43 @@ void ac_behavior( add )
 			((RB[rd] & 0x80000000) != (RB[rt] & 0x80000000)) ) {
 		fprintf(stderr, "EXCEPTION(add): integer overflow.\n"); exit(EXIT_FAILURE);
 	}
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction addu behavior method.
 void ac_behavior( addu )
 {
-	cycles = cycles+1;
 	dbg_printf("addu r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = RB[rs] + RB[rt];
 	//cout << "  RS: " << (unsigned int)RB[rs] << " RT: " << (unsigned int)RB[rt] << endl;
 	//cout << "  Result =  " <<  (unsigned int)RB[rd] <<endl;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction sub behavior method.
 void ac_behavior( sub )
 {
-	cycles = cycles+1;
 	dbg_printf("sub r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = RB[rs] - RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
 	//TODO: test integer overflow exception for sub
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction subu behavior method.
 void ac_behavior( subu )
 {
-	cycles = cycles+1;
 	dbg_printf("subu r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = RB[rs] - RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 /**** SETS ****/
 //!Instruction slt behavior method.
 void ac_behavior( slt )
 {	
-	cycles = cycles+1;
 	dbg_printf("slt r%d, r%d, r%d\n", rd, rs, rt);
 	// Set the RD if RS< RT
 	if( (ac_Sword) RB[rs] < (ac_Sword) RB[rt] )
@@ -599,15 +614,12 @@ void ac_behavior( slt )
 	else
 		RB[rd] = 0;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction sltu behavior method.
 void ac_behavior( sltu )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("sltu r%d, r%d, r%d\n", rd, rs, rt);
 	// Set the RD if RS < RT
 	if( RB[rs] < RB[rt] )
@@ -616,146 +628,111 @@ void ac_behavior( sltu )
 	else
 		RB[rd] = 0;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction instr_and behavior method.
 void ac_behavior( instr_and )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("instr_and r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = RB[rs] & RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction instr_or behavior method.
 void ac_behavior( instr_or )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("instr_or r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = RB[rs] | RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction instr_xor behavior method.
 void ac_behavior( instr_xor )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("instr_xor r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = RB[rs] ^ RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction instr_nor behavior method.
 void ac_behavior( instr_nor )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("nor r%d, r%d, r%d\n", rd, rs, rt);
 	RB[rd] = ~(RB[rs] | RB[rt]);
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction nop behavior method.
 void ac_behavior( nop )
 {  
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("nop\n");
-	//fprintf(pFile, "%d %x\n", 3, ac_pc);
+	update_data_hazard(create_instr(0, -1, -1, -1));
 };
 
 /**** SHIFTS ****/
 //!Instruction sll behavior method.
 void ac_behavior( sll )
 {  
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("sll r%d, r%d, %d\n", rd, rs, shamt);
 	RB[rd] = RB[rt] << shamt;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, -1));
 };
 
 //!Instruction srl behavior method.
 void ac_behavior( srl )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("srl r%d, r%d, %d\n", rd, rs, shamt);
 	RB[rd] = RB[rt] >> shamt;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, -1));
 };
 
 //!Instruction sra behavior method.
 void ac_behavior( sra )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("sra r%d, r%d, %d\n", rd, rs, shamt);
 	RB[rd] = (ac_Sword) RB[rt] >> shamt;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, -1));
 };
 
 //!Instruction sllv behavior method.
 void ac_behavior( sllv )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("sllv r%d, r%d, r%d\n", rd, rt, rs);
 	RB[rd] = RB[rt] << (RB[rs] & 0x1F);
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction srlv behavior method.
 void ac_behavior( srlv )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("srlv r%d, r%d, r%d\n", rd, rt, rs);
 	RB[rd] = RB[rt] >> (RB[rs] & 0x1F);
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 //!Instruction srav behavior method.
 void ac_behavior( srav )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("srav r%d, r%d, r%d\n", rd, rt, rs);
 	RB[rd] = (ac_Sword) RB[rt] >> (RB[rs] & 0x1F);
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rt, rs));
 };
 
 /**** MULT/DIV ****/
 //!Instruction mult behavior method.
 void ac_behavior( mult )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("mult r%d, r%d\n", rs, rt);
 
 	long long result;
@@ -773,15 +750,12 @@ void ac_behavior( mult )
 	hi = half_result ;
 
 	dbg_printf("Result = %#llx\n", result);
-	update_data_hazard(create_instr(-1, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rt, rs));
 };
 
 //!Instruction multu behavior method.
 void ac_behavior( multu )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("multu r%d, r%d\n", rs, rt);
 
 	unsigned long long result;
@@ -799,92 +773,71 @@ void ac_behavior( multu )
 	hi = half_result ;
 
 	dbg_printf("Result = %#llx\n", result);
-	update_data_hazard(create_instr(-1, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rt, rs));
 };
 
 //!Instruction div behavior method.
 void ac_behavior( div )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("div r%d, r%d\n", rs, rt);
 	// Register LO receives quotient
 	lo = (ac_Sword) RB[rs] / (ac_Sword) RB[rt];
 	// Register HI receives remainder
 	hi = (ac_Sword) RB[rs] % (ac_Sword) RB[rt];
-	update_data_hazard(create_instr(-1, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rt, rs));
 };
 
 //!Instruction divu behavior method.
 void ac_behavior( divu )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("divu r%d, r%d\n", rs, rt);
 	// Register LO receives quotient
 	lo = RB[rs] / RB[rt];
 	// Register HI receives remainder
 	hi = RB[rs] % RB[rt];
-	update_data_hazard(create_instr(-1, rt, rs));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rt, rs));
 };
 
 //!Instruction mfhi behavior method.
 void ac_behavior( mfhi )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("mfhi r%d\n", rd);
 	RB[rd] = hi;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, -1, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, -1, -1));
 };
 
 //!Instruction mthi behavior method.
 void ac_behavior( mthi )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("mthi r%d\n", rs);
 	hi = RB[rs];
 	dbg_printf("Result = %#x\n", (unsigned int) hi);
-	update_data_hazard(create_instr(-1, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, -1));
 };
 
 //!Instruction mflo behavior method.
 void ac_behavior( mflo )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("mflo r%d\n", rd);
 	RB[rd] = lo;
 	dbg_printf("Result = %#x\n", RB[rd]);
-	update_data_hazard(create_instr(rd, -1, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, -1, -1));
 };
 
 //!Instruction mtlo behavior method.
 void ac_behavior( mtlo )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("mtlo r%d\n", rs);
 	lo = RB[rs];
 	dbg_printf("Result = %#x\n", (unsigned int) lo);
-	update_data_hazard(create_instr(-1, rs, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, -1));
 };
 
-/**** BRANCHES ****/
+/**** JUMPS ****/
 //!Instruction j behavior method.
 void ac_behavior( j )
 {
-	cycles = cycles+1;
-	intr++;
 	jump_taken();		
 	dbg_printf("j %d\n", addr);
 	addr = addr << 2;
@@ -892,15 +845,12 @@ void ac_behavior( j )
 	npc =  (ac_pc & 0xF0000000) | addr;
 #endif 
 	dbg_printf("Target = %#x\n", (ac_pc & 0xF0000000) | addr );
-	update_data_hazard(create_instr(-1, -1, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, -1, -1));
 };
 
 //!Instruction jal behavior method.
 void ac_behavior( jal )
 {
-	cycles = cycles+1;
-	intr++;
 	jump_taken();		
 	dbg_printf("jal %d\n", addr);
 	// Save the value of PC + 8 (return address) in $ra ($31) and
@@ -915,15 +865,12 @@ void ac_behavior( jal )
 
 	dbg_printf("Target = %#x\n", (ac_pc & 0xF0000000) | addr );
 	dbg_printf("Return = %#x\n", ac_pc+4);
-	update_data_hazard(create_instr(-1, -1, -1));
-	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
+	update_data_hazard(create_instr(0, Ra, -1, -1));
 };
 
 //!Instruction jr behavior method.
 void ac_behavior( jr )
 {
-	cycles = cycles+1;
-	intr++;
 	jump_taken();		
 	dbg_printf("jr r%d\n", rs);
 	// Jump to the address stored on the register reg[RS]
@@ -932,19 +879,16 @@ void ac_behavior( jr )
 	npc = RB[rs], 1;
 #endif 
 	dbg_printf("Target = %#x\n", RB[rs]);
-	update_data_hazard(create_instr(-1, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, -1));
 };
 
 //!Instruction jalr behavior method.
 void ac_behavior( jalr )
 {
-	cycles = cycles+1;
-	intr++;
 	jump_taken();		
 	dbg_printf("jalr r%d, r%d\n", rd, rs);
 	// Save the value of PC + 8(return address) in rd and
-	// jump to the address given by [rs]\
+	// jump to the address given by [rs]
 
 #ifndef NO_NEED_PC_UPDATE
 	npc = RB[rs], 1;
@@ -955,16 +899,14 @@ void ac_behavior( jalr )
 		rd = Ra;
 	RB[rd] = ac_pc+4;
 	dbg_printf("Return = %#x\n", ac_pc+4);
-	update_data_hazard(create_instr(rd, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, rd, rs, -1));
 };
 
+/**** BRANCHES ****/
 //!Instruction beq behavior method.
 void ac_behavior( beq )
 {
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("beq r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	if( RB[rs] == RB[rt] ){
 #ifndef NO_NEED_PC_UPDATE
@@ -975,16 +917,14 @@ void ac_behavior( beq )
 	}	
 	if (taken) branch_taken();
 	else branch_not_taken();		
-	update_data_hazard(create_instr(-1, rs, rt));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, rt));
+
 };
 
 //!Instruction bne behavior method.
 void ac_behavior( bne )
 {	
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("bne r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
 	if( RB[rs] != RB[rt] ){
 #ifndef NO_NEED_PC_UPDATE
@@ -995,16 +935,13 @@ void ac_behavior( bne )
 	}	
 	if (taken) branch_taken();
 	else branch_not_taken();		
-	update_data_hazard(create_instr(-1, rs, rt));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, rt));
 };
 
 //!Instruction blez behavior method.
 void ac_behavior( blez )
 {
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("blez r%d, %d\n", rs, imm & 0xFFFF);
 	if( (RB[rs] == 0 ) || (RB[rs]&0x80000000 ) ){
 #ifndef NO_NEED_PC_UPDATE
@@ -1015,16 +952,13 @@ void ac_behavior( blez )
 	}	
 	if (taken) branch_taken();
 	else branch_not_taken();		
-	update_data_hazard(create_instr(-1, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, -1));
 };
 
 //!Instruction bgtz behavior method.
 void ac_behavior( bgtz )
 {
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("bgtz r%d, %d\n", rs, imm & 0xFFFF);
 	if( !(RB[rs] & 0x80000000) && (RB[rs]!=0) ){
 #ifndef NO_NEED_PC_UPDATE
@@ -1035,16 +969,13 @@ void ac_behavior( bgtz )
 	}	
 	if (taken) branch_taken();
 	else branch_not_taken();		
-	update_data_hazard(create_instr(-1, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, -1));
 };
 
 //!Instruction bltz behavior method.
 void ac_behavior( bltz )
 {
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("bltz r%d, %d\n", rs, imm & 0xFFFF);
 	if( RB[rs] & 0x80000000 ){
 #ifndef NO_NEED_PC_UPDATE
@@ -1055,16 +986,13 @@ void ac_behavior( bltz )
 	}	
 	if (taken) branch_taken();
 	else branch_not_taken();		
-	update_data_hazard(create_instr(-1, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, -1));
 };
 
 //!Instruction bgez behavior method.
 void ac_behavior( bgez )
 {
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("bgez r%d, %d\n", rs, imm & 0xFFFF);
 	if( !(RB[rs] & 0x80000000) ){
 #ifndef NO_NEED_PC_UPDATE
@@ -1075,16 +1003,13 @@ void ac_behavior( bgez )
 	}	
 	if (taken) branch_taken();
 	else branch_not_taken();		
-	update_data_hazard(create_instr(-1, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, -1, rs, -1));
 };
 
 //!Instruction bltzal behavior method.
 void ac_behavior( bltzal )
 {
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("bltzal r%d, %d\n", rs, imm & 0xFFFF);
 	RB[Ra] = ac_pc+4; //ac_pc is pc+4, we need pc+8
 	if( RB[rs] & 0x80000000 ){
@@ -1097,16 +1022,13 @@ void ac_behavior( bltzal )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	dbg_printf("Return = %#x\n", ac_pc+4);
-	update_data_hazard(create_instr(Ra, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, Ra, rs, -1));
 };
 
 //!Instruction bgezal behavior method.
 void ac_behavior( bgezal )
 {
 	bool taken = false;
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("bgezal r%d, %d\n", rs, imm & 0xFFFF);
 	RB[Ra] = ac_pc+4; //ac_pc is pc+4, we need pc+8
 	if( !(RB[rs] & 0x80000000) ){
@@ -1119,27 +1041,22 @@ void ac_behavior( bgezal )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	dbg_printf("Return = %#x\n", ac_pc+4);
-	update_data_hazard(create_instr(Ra, rs, -1));
-	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
+	update_data_hazard(create_instr(0, Ra, rs, -1));
 };
 
 /**** OTHER ****/
 //!Instruction sys_call behavior method.
 void ac_behavior( sys_call )
 {
-	cycles = cycles+1;
-	intr++;
 	dbg_printf("syscall\n");
 	stop();
-	update_data_hazard(create_instr(-1, -1, -1));
-	//fprintf(pFile, "%d %x\n", 3, ac_pc);
+	update_data_hazard(create_instr(0, -1, -1, -1));
 }
 
 //!Instruction instr_break behavior method.
 void ac_behavior( instr_break )
 {
-	cycles = cycles+1;
-	intr++;
 	fprintf(stderr, "instr_break behavior not implemented.\n"); 
 	exit(EXIT_FAILURE);
+	update_data_hazard(create_instr(0, -1, -1, -1));
 }

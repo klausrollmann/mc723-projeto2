@@ -34,7 +34,7 @@ Hazards de controle ocorrem quando não tem branch predictor ou quando o branch 
 #### Cache
 As configurações de cache avaliadas serão as mostradas na tabela abaixo.
 
-| Configuração | L1usize | L1block | Associatividade L1 | L2usize | L2block | Associatividade L2 |
+| Configuração | L1usize| L1block | Associatividade L1 | L2usize | L2block | Associatividade L2 |
 |:------------:|:------:|:-------:|:------------------:|:------:|:-------:|:------------------:|
 |       1      |   32   |    64   |          2         |   256  |   1024  |          2         |
 |       2      |   64   |   128   |          2         |   512  |   1024  |          2         |
