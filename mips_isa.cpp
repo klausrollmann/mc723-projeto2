@@ -24,6 +24,12 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
+
+#include <string>
+
+
+ FILE * pFile;
+
 /* Variaveis de configuração */
 // Tipo de branch predictor (um ou outro, ou nenhum)
 bool branch_predictor = false; 
@@ -181,6 +187,7 @@ void ac_behavior( instruction )
 	ac_pc = npc;
 	npc = ac_pc + 4;
 #endif 
+	fprintf(pFile, "%d %x\n", 2, (int)ac_pc);
 };
 
 //! Instruction Format behavior methods.
@@ -204,6 +211,11 @@ void ac_behavior(begin)
 	lo = 0;
 
 	RB[29] =  AC_RAM_END - 1024 - processors_started++ * DEFAULT_STACK_SIZE;
+
+	//opens the file to write the trace
+	printf("INFO: Abriu arquivo de traces.\n");
+	pFile = fopen ("trace.din","w");
+	
 }
 
 //!Behavior called after finishing simulation
@@ -219,6 +231,8 @@ void ac_behavior(end)
 	printf("Incorrect Branch Predictions: %d\n", branch_incorrect);
 	printf("CPI: %.2f\n", (float)cycles/intr);
 	dbg_printf("@@@ end behavior @@@\n");
+	fclose(pFile);
+	printf("INFO: Fechou arquivo de traces.\n");
 }
 
 
@@ -234,6 +248,7 @@ void ac_behavior( lb )
 	RB[rt] = (ac_Sword)byte ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction lbu behavior method.
@@ -247,6 +262,7 @@ void ac_behavior( lbu )
 	RB[rt] = byte ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction lh behavior method.
@@ -260,6 +276,7 @@ void ac_behavior( lh )
 	RB[rt] = (ac_Sword)half ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction lhu behavior method.
@@ -272,6 +289,7 @@ void ac_behavior( lhu )
 	RB[rt] = half ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction lw behavior method.
@@ -283,6 +301,7 @@ void ac_behavior( lw )
 	RB[rt] = DM.read(RB[rs]+ imm);
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction lwl behavior method.
@@ -302,6 +321,7 @@ void ac_behavior( lwl )
 	RB[rt] = data;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction lwr behavior method.
@@ -321,6 +341,7 @@ void ac_behavior( lwr )
 	RB[rt] = data;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 /**** STORES ****/
@@ -335,6 +356,7 @@ void ac_behavior( sb )
 	DM.write_byte(RB[rs] + imm, byte);
 	dbg_printf("Result = %#x\n", (int) byte);
 	update_data_hazard(create_instr(-1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction sh behavior method.
@@ -348,6 +370,7 @@ void ac_behavior( sh )
 	DM.write_half(RB[rs] + imm, half);
 	dbg_printf("Result = %#x\n", (int) half);
 	update_data_hazard(create_instr(-1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction sw behavior method.
@@ -359,6 +382,7 @@ void ac_behavior( sw )
 	DM.write(RB[rs] + imm, RB[rt]);
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(-1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction swl behavior method.
@@ -378,6 +402,7 @@ void ac_behavior( swl )
 	DM.write(addr & 0xFFFFFFFC, data);
 	dbg_printf("Result = %#x\n", data);
 	update_data_hazard(create_instr(-1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction swr behavior method.
@@ -397,6 +422,7 @@ void ac_behavior( swr )
 	DM.write(addr & 0xFFFFFFFC, data);
 	dbg_printf("Result = %#x\n", data);
 	update_data_hazard(create_instr(-1, rs, rt));
+	fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 /**** ADDI ****/
@@ -413,6 +439,7 @@ void ac_behavior( addi )
 		fprintf(stderr, "EXCEPTION(addi): integer overflow.\n"); exit(EXIT_FAILURE);
 	}
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction addiu behavior method.
@@ -423,6 +450,7 @@ void ac_behavior( addiu )
 	RB[rt] = RB[rs] + imm;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 /**** BIT OPERATIONS ****/
@@ -439,6 +467,7 @@ void ac_behavior( slti )
 		RB[rt] = 0;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction sltiu behavior method.
@@ -454,6 +483,7 @@ void ac_behavior( sltiu )
 		RB[rt] = 0;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction andi behavior method.
@@ -464,6 +494,7 @@ void ac_behavior( andi )
 	RB[rt] = RB[rs] & (imm & 0xFFFF) ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction ori behavior method.
@@ -474,6 +505,7 @@ void ac_behavior( ori )
 	RB[rt] = RB[rs] | (imm & 0xFFFF) ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction xori behavior method.
@@ -484,6 +516,7 @@ void ac_behavior( xori )
 	RB[rt] = RB[rs] ^ (imm & 0xFFFF) ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction lui behavior method.
@@ -497,6 +530,7 @@ void ac_behavior( lui )
 	RB[rt] = imm << 16;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(rt, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 /**** ARITHMETIC ****/
@@ -513,6 +547,7 @@ void ac_behavior( add )
 		fprintf(stderr, "EXCEPTION(add): integer overflow.\n"); exit(EXIT_FAILURE);
 	}
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction addu behavior method.
@@ -525,6 +560,7 @@ void ac_behavior( addu )
 	//cout << "  Result =  " <<  (unsigned int)RB[rd] <<endl;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction sub behavior method.
@@ -536,6 +572,7 @@ void ac_behavior( sub )
 	dbg_printf("Result = %#x\n", RB[rd]);
 	//TODO: test integer overflow exception for sub
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction subu behavior method.
@@ -546,6 +583,7 @@ void ac_behavior( subu )
 	RB[rd] = RB[rs] - RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 /**** SETS ****/
@@ -562,6 +600,7 @@ void ac_behavior( slt )
 		RB[rd] = 0;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction sltu behavior method.
@@ -578,6 +617,7 @@ void ac_behavior( sltu )
 		RB[rd] = 0;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction instr_and behavior method.
@@ -589,6 +629,7 @@ void ac_behavior( instr_and )
 	RB[rd] = RB[rs] & RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction instr_or behavior method.
@@ -600,6 +641,7 @@ void ac_behavior( instr_or )
 	RB[rd] = RB[rs] | RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction instr_xor behavior method.
@@ -611,6 +653,7 @@ void ac_behavior( instr_xor )
 	RB[rd] = RB[rs] ^ RB[rt];
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction instr_nor behavior method.
@@ -622,6 +665,7 @@ void ac_behavior( instr_nor )
 	RB[rd] = ~(RB[rs] | RB[rt]);
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction nop behavior method.
@@ -630,6 +674,7 @@ void ac_behavior( nop )
 	cycles = cycles+1;
 	intr++;
 	dbg_printf("nop\n");
+	//fprintf(pFile, "%d %x\n", 3, ac_pc);
 };
 
 /**** SHIFTS ****/
@@ -642,6 +687,7 @@ void ac_behavior( sll )
 	RB[rd] = RB[rt] << shamt;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction srl behavior method.
@@ -653,6 +699,7 @@ void ac_behavior( srl )
 	RB[rd] = RB[rt] >> shamt;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction sra behavior method.
@@ -664,6 +711,7 @@ void ac_behavior( sra )
 	RB[rd] = (ac_Sword) RB[rt] >> shamt;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction sllv behavior method.
@@ -675,6 +723,7 @@ void ac_behavior( sllv )
 	RB[rd] = RB[rt] << (RB[rs] & 0x1F);
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction srlv behavior method.
@@ -686,6 +735,7 @@ void ac_behavior( srlv )
 	RB[rd] = RB[rt] >> (RB[rs] & 0x1F);
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction srav behavior method.
@@ -697,6 +747,7 @@ void ac_behavior( srav )
 	RB[rd] = (ac_Sword) RB[rt] >> (RB[rs] & 0x1F);
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 /**** MULT/DIV ****/
@@ -723,6 +774,7 @@ void ac_behavior( mult )
 
 	dbg_printf("Result = %#llx\n", result);
 	update_data_hazard(create_instr(-1, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction multu behavior method.
@@ -748,6 +800,7 @@ void ac_behavior( multu )
 
 	dbg_printf("Result = %#llx\n", result);
 	update_data_hazard(create_instr(-1, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction div behavior method.
@@ -761,6 +814,7 @@ void ac_behavior( div )
 	// Register HI receives remainder
 	hi = (ac_Sword) RB[rs] % (ac_Sword) RB[rt];
 	update_data_hazard(create_instr(-1, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction divu behavior method.
@@ -774,6 +828,7 @@ void ac_behavior( divu )
 	// Register HI receives remainder
 	hi = RB[rs] % RB[rt];
 	update_data_hazard(create_instr(-1, rt, rs));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction mfhi behavior method.
@@ -785,6 +840,7 @@ void ac_behavior( mfhi )
 	RB[rd] = hi;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, -1, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction mthi behavior method.
@@ -796,6 +852,7 @@ void ac_behavior( mthi )
 	hi = RB[rs];
 	dbg_printf("Result = %#x\n", (unsigned int) hi);
 	update_data_hazard(create_instr(-1, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction mflo behavior method.
@@ -807,6 +864,7 @@ void ac_behavior( mflo )
 	RB[rd] = lo;
 	dbg_printf("Result = %#x\n", RB[rd]);
 	update_data_hazard(create_instr(rd, -1, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction mtlo behavior method.
@@ -818,6 +876,7 @@ void ac_behavior( mtlo )
 	lo = RB[rs];
 	dbg_printf("Result = %#x\n", (unsigned int) lo);
 	update_data_hazard(create_instr(-1, rs, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 /**** BRANCHES ****/
@@ -834,6 +893,7 @@ void ac_behavior( j )
 #endif 
 	dbg_printf("Target = %#x\n", (ac_pc & 0xF0000000) | addr );
 	update_data_hazard(create_instr(-1, -1, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction jal behavior method.
@@ -856,6 +916,7 @@ void ac_behavior( jal )
 	dbg_printf("Target = %#x\n", (ac_pc & 0xF0000000) | addr );
 	dbg_printf("Return = %#x\n", ac_pc+4);
 	update_data_hazard(create_instr(-1, -1, -1));
+	//fprintf(pFile, "%d %x\n", 1, (int)ac_pc);
 };
 
 //!Instruction jr behavior method.
@@ -872,6 +933,7 @@ void ac_behavior( jr )
 #endif 
 	dbg_printf("Target = %#x\n", RB[rs]);
 	update_data_hazard(create_instr(-1, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction jalr behavior method.
@@ -882,7 +944,7 @@ void ac_behavior( jalr )
 	jump_taken();		
 	dbg_printf("jalr r%d, r%d\n", rd, rs);
 	// Save the value of PC + 8(return address) in rd and
-	// jump to the address given by [rs]
+	// jump to the address given by [rs]\
 
 #ifndef NO_NEED_PC_UPDATE
 	npc = RB[rs], 1;
@@ -894,6 +956,7 @@ void ac_behavior( jalr )
 	RB[rd] = ac_pc+4;
 	dbg_printf("Return = %#x\n", ac_pc+4);
 	update_data_hazard(create_instr(rd, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction beq behavior method.
@@ -913,7 +976,7 @@ void ac_behavior( beq )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	update_data_hazard(create_instr(-1, rs, rt));
-	
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction bne behavior method.
@@ -933,6 +996,7 @@ void ac_behavior( bne )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	update_data_hazard(create_instr(-1, rs, rt));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction blez behavior method.
@@ -952,6 +1016,7 @@ void ac_behavior( blez )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	update_data_hazard(create_instr(-1, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction bgtz behavior method.
@@ -971,6 +1036,7 @@ void ac_behavior( bgtz )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	update_data_hazard(create_instr(-1, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction bltz behavior method.
@@ -990,6 +1056,7 @@ void ac_behavior( bltz )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	update_data_hazard(create_instr(-1, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction bgez behavior method.
@@ -1009,6 +1076,7 @@ void ac_behavior( bgez )
 	if (taken) branch_taken();
 	else branch_not_taken();		
 	update_data_hazard(create_instr(-1, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction bltzal behavior method.
@@ -1030,6 +1098,7 @@ void ac_behavior( bltzal )
 	else branch_not_taken();		
 	dbg_printf("Return = %#x\n", ac_pc+4);
 	update_data_hazard(create_instr(Ra, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 //!Instruction bgezal behavior method.
@@ -1051,6 +1120,7 @@ void ac_behavior( bgezal )
 	else branch_not_taken();		
 	dbg_printf("Return = %#x\n", ac_pc+4);
 	update_data_hazard(create_instr(Ra, rs, -1));
+	//fprintf(pFile, "%d %x\n", 0, (int)ac_pc);
 };
 
 /**** OTHER ****/
@@ -1062,6 +1132,7 @@ void ac_behavior( sys_call )
 	dbg_printf("syscall\n");
 	stop();
 	update_data_hazard(create_instr(-1, -1, -1));
+	//fprintf(pFile, "%d %x\n", 3, ac_pc);
 }
 
 //!Instruction instr_break behavior method.
