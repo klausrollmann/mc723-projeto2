@@ -1,0 +1,93 @@
+BASIC MATH SMALL
+
+        SystemC 2.3.1-Accellera --- Apr  8 2016 10:10:37
+        Copyright (c) 1996-2014 by all Contributors,
+        ALL RIGHTS RESERVED
+ArchC: Reading ELF application file: basicmath_small
+ArchC: -------------------- Starting Simulation --------------------
+
+ArchC: -------------------- Simulation Finished --------------------
+---- Configurações ---- 
+
+Generate Traces = false
+Forwarding = true
+Branch predictor = Always not taken
+Type = escalar
+Cycles: 1348284298
+Total Instructions: 1089764738
+Total Stalled Instructions: 258519560
+|--Data Stalls: 6320474
+|--Branch Stalls: 174174312
+|--Jump Stalls: 78024774
+Correct Branch Predictions: 67993852
+Total Branches: 126051956
+CPI: 1.24
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+ArchC: Simulation statistics
+    Times: 22.97 user, 0.02 system, 23.01 real
+    Number of instructions executed: 1089784488
+    Simulation speed: 47443.82 K instr/s
+
+RIJNDAEL CODER SMALL
+
+        SystemC 2.3.1-Accellera --- Apr  8 2016 10:10:37
+        Copyright (c) 1996-2014 by all Contributors,
+        ALL RIGHTS RESERVED
+ArchC: Reading ELF application file: rijndael
+ArchC: -------------------- Starting Simulation --------------------
+
+ArchC: -------------------- Simulation Finished --------------------
+---- Configurações ---- 
+
+Generate Traces = false
+Forwarding = true
+Branch predictor = Always not taken
+Type = escalar
+Cycles: 46221090
+Total Instructions: 43561034
+Total Stalled Instructions: 2660056
+|--Data Stalls: 58858
+|--Branch Stalls: 1490622
+|--Jump Stalls: 1110576
+Correct Branch Predictions: 393183
+Total Branches: 890057
+CPI: 1.06
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+ArchC: Simulation statistics
+    Times: 0.74 user, 0.00 system, 0.76 real
+    Number of instructions executed: 43561699
+    Simulation speed: 58867.16 K instr/s
+
+SUSAN CORNERS SMALL
+
+        SystemC 2.3.1-Accellera --- Apr  8 2016 10:10:37
+        Copyright (c) 1996-2014 by all Contributors,
+        ALL RIGHTS RESERVED
+ArchC: Reading ELF application file: susan
+ArchC: -------------------- Starting Simulation --------------------
+
+ArchC: -------------------- Simulation Finished --------------------
+---- Configurações ---- 
+
+Generate Traces = false
+Forwarding = true
+Branch predictor = Always not taken
+Type = escalar
+Cycles: 3929188
+Total Instructions: 3222153
+Total Stalled Instructions: 707035
+|--Data Stalls: 14317
+|--Branch Stalls: 451638
+|--Jump Stalls: 241080
+Correct Branch Predictions: 186777
+Total Branches: 337323
+CPI: 1.22
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+ArchC: Simulation statistics
+    Times: 0.09 user, 0.00 system, 0.10 real
+    Number of instructions executed: 3222208
+    Simulation speed: 35802.31 K instr/s
+

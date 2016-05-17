@@ -30,10 +30,10 @@ FILE * pFile;
 // Gerar traces
 bool generate_traces = false;
 // Tipo de branch predictor (um ou outro, ou nenhum)
-bool branch_always_not_taken = true;
+bool branch_always_not_taken = false;
 bool branch_predictor = false; // 1 bit predictor
 // Com ou sem forwarding
-bool forwarding = true;
+bool forwarding = false;
 // Superscalar
 bool superscalar = false;
 /* ************************ */
@@ -279,7 +279,7 @@ void ac_behavior(begin)
 	//opens the file to write the trace
 	if (generate_traces) {
 		printf("INFO: Abriu arquivo de traces.\n");
-		pFile = fopen ("trace.din","w");
+		pFile = fopen ("/home/staff/lucas/tmp-lab/g05-trace_susan_corners.din","w");
 	}
 }
 
