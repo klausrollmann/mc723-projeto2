@@ -27,13 +27,16 @@
 FILE * pFile;
 
 /* Variaveis de configuração */
+// Gerar traces
+bool generate_traces = false;
 // Tipo de branch predictor (um ou outro, ou nenhum)
-bool branch_predictor = false; 
-bool branch_always_not_taken = false;
+bool branch_always_not_taken = true;
+bool branch_predictor = false; // 1 bit predictor
 // Com ou sem forwarding
-bool forwarding = false;
+bool forwarding = true;
 // Superscalar
 bool superscalar = false;
+/* ************************ */
 
 /* Contadores */
 // Contador de Ciclos
@@ -160,8 +163,8 @@ void update_data_hazard(instruction instr) {
 
 /* Branch predictor */
 // Contador de branches corretos e incorretos
-int branch_correct = 0;
-int branch_incorrect = 0;
+long branch_correct = 0;
+long branch_incorrect = 0;
 // Contador de stalls devido a branches
 long branch_stalls = 0;
 long jump_stalls = 0;
@@ -222,7 +225,7 @@ void branch_not_taken() {
 
 
 //If you want debug information for this model, uncomment next line
-#define DEBUG_MODEL
+//#define DEBUG_MODEL
 #include "ac_debug_model.H"
 
 
@@ -248,7 +251,8 @@ void ac_behavior( instruction )
 	ac_pc = npc;
 	npc = ac_pc + 4;
 # endif 
-	fprintf(pFile, "%d %x\n", 2, (int)ac_pc);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 2, (int)ac_pc);
 };
 
 //! Instruction Format behavior methods.
@@ -273,29 +277,47 @@ void ac_behavior(begin)
 
 	RB[29] =  AC_RAM_END - 1024 - processors_started++ * DEFAULT_STACK_SIZE;
 	//opens the file to write the trace
-	printf("INFO: Abriu arquivo de traces.\n");
-	pFile = fopen ("trace.din","w");
+	if (generate_traces) {
+		printf("INFO: Abriu arquivo de traces.\n");
+		pFile = fopen ("trace.din","w");
+	}
 }
 
 //!Behavior called after finishing simulation
 void ac_behavior(end)
 {
+	// Imprime configurações
+	printf("---- Configurações ---- \n\n");
+	printf("Generate Traces = ");
+	(generate_traces) ? printf("true\n"):printf("false\n");
+	printf("Forwarding = ");
+	(forwarding) ? printf("true\n"):printf("false\n");
+	printf("Branch predictor = ");
+	if (branch_predictor) printf("1-Bit Taken\n");
+	else if (branch_always_not_taken) printf("Always not taken\n");
+	else printf("None\n");
+	printf("Type = ");
+	(superscalar) ? printf("superescalar\n"):printf("escalar\n");
+
+	// Imprime informações
 	if (superscalar) {
 		cycles /= 2;
 		data_stalls /= 2;
 	}
-	printf("Cycles: %d\n", cycles);
-	printf("Total Instructions: %d\n", intr);
-	printf("Total Stalled Instructions: %d\n", data_stalls + branch_stalls + jump_stalls);
-	printf("|--Data Stalls: %d\n", data_stalls);
-	printf("|--Branch Stalls: %d\n", branch_stalls);
-	printf("|--Jump Stalls: %d\n", jump_stalls);
-	printf("Correct Branch Predictions: %d\n", branch_correct);
-	printf("Incorrect Branch Predictions: %d\n", branch_incorrect);
+	printf("Cycles: %ld\n", cycles);
+	printf("Total Instructions: %ld\n", intr);
+	printf("Total Stalled Instructions: %ld\n", data_stalls + branch_stalls + jump_stalls);
+	printf("|--Data Stalls: %ld\n", data_stalls);
+	printf("|--Branch Stalls: %ld\n", branch_stalls);
+	printf("|--Jump Stalls: %ld\n", jump_stalls);
+	printf("Correct Branch Predictions: %ld\n", branch_correct);
+	printf("Total Branches: %ld\n", branch_correct + branch_incorrect);
 	printf("CPI: %.2f\n", (float)cycles/intr);
 	dbg_printf("@@@ end behavior @@@\n");
-	fclose(pFile);
-	printf("INFO: Fechou arquivo de traces.\n");
+	if (generate_traces) {
+		fclose(pFile);
+		printf("INFO: Fechou arquivo de traces.\n");
+	}
 }
 
 
@@ -309,7 +331,8 @@ void ac_behavior( lb )
 	RB[rt] = (ac_Sword)byte ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(1, rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lbu behavior method.
@@ -321,7 +344,8 @@ void ac_behavior( lbu )
 	RB[rt] = byte ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(1, rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lh behavior method.
@@ -333,7 +357,8 @@ void ac_behavior( lh )
 	RB[rt] = (ac_Sword)half ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(1, rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lhu behavior method.
@@ -344,7 +369,8 @@ void ac_behavior( lhu )
 	RB[rt] = half ;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(1, rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lw behavior method.
@@ -354,7 +380,8 @@ void ac_behavior( lw )
 	RB[rt] = DM.read(RB[rs]+ imm);
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(1, rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 0, (RB[rs] + imm));
 };
 
 //!Instruction lwl behavior method.
@@ -372,7 +399,8 @@ void ac_behavior( lwl )
 	RB[rt] = data;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(1, rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, addr & 0xFFFFFFFC);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 0, addr & 0xFFFFFFFC);
 };
 
 //!Instruction lwr behavior method.
@@ -390,7 +418,8 @@ void ac_behavior( lwr )
 	RB[rt] = data;
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(1, rt, rs, -1));
-	fprintf(pFile, "%d %x\n", 0, addr & 0xFFFFFFFC);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 0, addr & 0xFFFFFFFC);
 };
 
 /**** STORES ****/
@@ -403,7 +432,8 @@ void ac_behavior( sb )
 	DM.write_byte(RB[rs] + imm, byte);
 	dbg_printf("Result = %#x\n", (int) byte);
 	update_data_hazard(create_instr(0, -1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
 };
 
 //!Instruction sh behavior method.
@@ -415,7 +445,8 @@ void ac_behavior( sh )
 	DM.write_half(RB[rs] + imm, half);
 	dbg_printf("Result = %#x\n", (int) half);
 	update_data_hazard(create_instr(0, -1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
 };
 
 //!Instruction sw behavior method.
@@ -425,7 +456,8 @@ void ac_behavior( sw )
 	DM.write(RB[rs] + imm, RB[rt]);
 	dbg_printf("Result = %#x\n", RB[rt]);
 	update_data_hazard(create_instr(0, -1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 1, RB[rs] + imm);
 };
 
 //!Instruction swl behavior method.
@@ -443,7 +475,8 @@ void ac_behavior( swl )
 	DM.write(addr & 0xFFFFFFFC, data);
 	dbg_printf("Result = %#x\n", data);
 	update_data_hazard(create_instr(0, -1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, addr & 0xFFFFFFFC);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 1, addr & 0xFFFFFFFC);
 };
 
 //!Instruction swr behavior method.
@@ -462,7 +495,8 @@ void ac_behavior( swr )
 	DM.write(addr & 0xFFFFFFFC, data);
 	dbg_printf("Result = %#x\n", data);
 	update_data_hazard(create_instr(0, -1, rs, rt));
-	fprintf(pFile, "%d %x\n", 1, addr & 0xFFFFFFFC);
+	if (generate_traces)
+		fprintf(pFile, "%d %x\n", 1, addr & 0xFFFFFFFC);
 };
 
 /**** ADDI ****/
