@@ -1,5 +1,5 @@
 	#!/bin/bash
-trace="/home/staff/lucas/tmp-lab/g05/g05-trace_basicmath"
+trace="/home/staff/lucas/tmp-lab/g05/g05-trace_rijndael_coder"
 # Configuração 1 de cache
 /home/staff/lucas/mc723/dinero4sbc/dineroIV -maxtrace 20 -l1-usize 32K -l1-ubsize 64 -l1-uassoc 2 -l2-usize 256K -l2-ubsize 1024 -l2-uassoc 2 -informat d < ${trace}.din
  
