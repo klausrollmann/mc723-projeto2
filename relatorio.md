@@ -116,4 +116,7 @@ Pontualmente, C10 que se parece muito com C5, diferindo apenas que C10 não poss
 
 Por não ter branch predictor, C11, em comparação com C10, possuiu maior quantidade de stalls e, por consequência, maior quantidade de ciclos totais (até 40% maior).
 
+Para C9, que difere de C5 apenas no branch predictor - C9 tem branch predictor 1 bit indicator - vemos que há uma melhora na acurácia do branch predictor (BasicMath: 6%) e um total de ciclos menor, mas essa diferença foi bem pouco significativa (< 2%).
+
+
 ## Conclusão
