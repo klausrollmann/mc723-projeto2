@@ -100,4 +100,20 @@ A partir dessas variáveis foram calculadas as seguintes informações:
 
 ## Análise
 
+
+Reunimos os dados de L1 miss rate e L2 miss rate para as configurações 5, 6, 7 e 8, para cada um dos softwares analisados, e construímos os gráficos expostos a seguir. 
+
+<< IMAGEM DOS GRÁFICOS DE MISS RATE PARA OS 3 SOFTWARES>>
+
+Observando esses gráficos, vemos que os misses de L1 foram baixos para as quatro configurações diferentes de cache. Notamos também que os misses de L2 ficaram, em sua maioria, dentro da faixa de 45% e 60%. Adicionalmente, o miss rate de L2 apresentou valores baixos (< 10% ) para a configuração de cache 5 e 8 no software BasicMath.
+Em geral, ao comparar essas 4 configurações, nota-se que as configurações 5 e 8 se destacam exatamente por esse comportamento de miss rate de L2 baixo, sendo que todas as outras configurações mostraram-se semelhantes nos outros aspectos. Todavia, pode-se decidir que a configuração 8 teve melhor desempenho, uma vez que apresentou valores menores de L1 miss rate para todos os softwares e que, visto nos gráficos a seguir, teve menor número de ciclos totais.
+
+<< IMAGEM DOS GRÁFICOS DE NÚMERO DE CICLOS PARA OS 3 SOFTWARES>>
+
+Como a configuração 4 difere da 5 apenas em ser superescalar (5 não é), comparamos o comportamento dessas duas configurações: os números L1 miss rate foram muito parecidos e o superescalar apresentou melhores valores, em geral, para L2 miss rate. Além disso, C5 apresentou maior quantidade de ciclos totais (até 15%), mesmo tendo um valor inferior (4x) de stalls de dados e controle que C4.
+
+Pontualmente, C10 que se parece muito com C5, diferindo apenas que C10 não possui forwarding, apresentou uma quantidade total de ciclos até 20% maior que C5, uma quantidade menor de L2 miss rate, e um valor maior de stalls de controle e dados (até 2x maior).
+
+Por não ter branch predictor, C11, em comparação com C10, possuiu maior quantidade de stalls e, por consequência, maior quantidade de ciclos totais (até 40% maior).
+
 ## Conclusão
