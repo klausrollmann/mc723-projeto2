@@ -120,6 +120,10 @@ void update_data_hazard(instruction instr) {
 	}
 	// Processador superescalar (com forwarding)
 	else {
+		if (intr % 2 == 1) {
+			instr2 = instr;
+		}
+		else {
 		// RAW
 		if (previous_instr[1].type == 1) {
 			if (instr.r1 == previous_instr[1].w || instr2.r1 == previous_instr[1].w) {
@@ -156,6 +160,7 @@ void update_data_hazard(instruction instr) {
 		previous_instr[1] = instr;
 		previous_instr2[0] = previous_instr2[1];
 		previous_instr2[1] = instr2;
+		}
 
 	}
 }
@@ -302,7 +307,6 @@ void ac_behavior(end)
 	// Imprime informações
 	if (superscalar) {
 		cycles /= 2;
-		data_stalls /= 2;
 	}
 	printf("Cycles: %ld\n", cycles);
 	printf("Total Instructions: %ld\n", intr);

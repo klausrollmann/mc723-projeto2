@@ -13,21 +13,21 @@ Generate Traces = false
 Forwarding = true
 Branch predictor = Always not taken
 Type = superescalar
-Cycles: 1285770676
+Cycles: 987234285
 Total Instructions: 1089764738
-Total Stalled Instructions: 866987850
-|--Data Stalls: 614788764
+Total Stalled Instructions: 884703832
+|--Data Stalls: 632504746
 |--Branch Stalls: 174174312
 |--Jump Stalls: 78024774
 Correct Branch Predictions: 67993852
 Total Branches: 126051956
-CPI: 1.18
+CPI: 0.91
 
 Info: /OSCI/SystemC: Simulation stopped by user.
 ArchC: Simulation statistics
-    Times: 23.87 user, 0.03 system, 23.91 real
+    Times: 24.25 user, 0.02 system, 24.29 real
     Number of instructions executed: 1089784488
-    Simulation speed: 45654.98 K instr/s
+    Simulation speed: 44939.57 K instr/s
 
 RIJNDAEL CODER SMALL
 
@@ -44,21 +44,21 @@ Generate Traces = false
 Forwarding = true
 Branch predictor = Always not taken
 Type = superescalar
-Cycles: 49735344
+Cycles: 35352593
 Total Instructions: 43561034
-Total Stalled Instructions: 29255426
-|--Data Stalls: 26654228
+Total Stalled Instructions: 27144152
+|--Data Stalls: 24542954
 |--Branch Stalls: 1490622
 |--Jump Stalls: 1110576
 Correct Branch Predictions: 393183
 Total Branches: 890057
-CPI: 1.14
+CPI: 0.81
 
 Info: /OSCI/SystemC: Simulation stopped by user.
 ArchC: Simulation statistics
-    Times: 0.89 user, 0.00 system, 0.91 real
+    Times: 0.82 user, 0.00 system, 0.84 real
     Number of instructions executed: 43561699
-    Simulation speed: 48945.73 K instr/s
+    Simulation speed: 53124.02 K instr/s
 
 SUSAN CORNERS SMALL
 
@@ -75,19 +75,19 @@ Generate Traces = false
 Forwarding = true
 Branch predictor = Always not taken
 Type = superescalar
-Cycles: 3886539
+Cycles: 2912437
 Total Instructions: 3222153
-Total Stalled Instructions: 2621821
-|--Data Stalls: 1929103
+Total Stalled Instructions: 2602721
+|--Data Stalls: 1910003
 |--Branch Stalls: 451638
 |--Jump Stalls: 241080
 Correct Branch Predictions: 186777
 Total Branches: 337323
-CPI: 1.21
+CPI: 0.90
 
 Info: /OSCI/SystemC: Simulation stopped by user.
 ArchC: Simulation statistics
-    Times: 0.11 user, 0.00 system, 0.11 real
+    Times: 0.07 user, 0.00 system, 0.09 real
     Number of instructions executed: 3222208
-    Simulation speed: 29292.80 K instr/s
+    Simulation speed: 46031.54 K instr/s
 
