@@ -46,7 +46,8 @@ Nos processadores escalares com múltiplos estágios e superescalar, foi conside
 No processador superescalar, foi verificado o caso em que uma instrução lê um registrador que foi escrito por uma instrução de load anterior, e também, se ocorre dependencia de instruções e essas instruções estão no mesmo estágio do pipeline. Esses hazard são os do tipo WAR e WAW.
 O processador superescalar suposto foi um que possui 5 estágios, em que há dois pipelines em paralelo, como mostrado na figura abaixo.
 
-![l1-f2b-size](https://raw.githubusercontent.com/klausrollmann/mc723-projeto2/master/superscalarpipeline.svg =250x)
+![superscalar](https://raw.githubusercontent.com/klausrollmann/mc723-projeto2/master/superscalarpipeline.svg)
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Superscalarpipeline.svg/978px-Superscalarpipeline.svg.png" width="250">
 
 Como há duas instruções no mesmo estágio do pipeline, pode ocorrer dependência entre duas instruções que escrevem (WAW) ou se uma instrução escreve e outra lê, se estiverem no mesmo estágio do pipeline. Sendo assim, foram feitas duas verificações, descritas abaixo.
 
