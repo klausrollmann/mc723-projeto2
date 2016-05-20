@@ -48,6 +48,8 @@ long intr = 0;
 // Contador de stalls de dados
 long data_stalls = 0;
 
+int pipe_size = 5;
+
 // Salva instruções anteriores na struct instruction
 typedef struct instruction {
 	int type; // tipo da instrução (0-aritmetica, 1-load)
@@ -83,11 +85,20 @@ void update_data_hazard(instruction instr) {
 				if (instr.r1 == previous_instr[1].w) {// Dois stalls
 					data_stalls += 2;
 					cycles += 2;
+                                        if (pipe_size == 7){
+                                            data_stalls+=2;
+                                            cycles +=2;
+                                        }
 				}
 				else if (instr.r1 == previous_instr[0].w) { // Um stall
 					data_stalls += 1;
 					cycles += 1;
+                                        if (pipe_size == 7){
+                                            data_stalls+=1;
+                                            cycles +=1;
+                                        }
 				}
+				
 			}
 			// Verifica se le em rt algum registrador que foi escrito por uma das previous_instr
 			else if (instr.r2 > 0) { 
