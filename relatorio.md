@@ -43,7 +43,7 @@ Essas verificações foram feitas modificando-se o arquivo `mips.isa` para salva
 
 ##### Hazard de Dados
 
-Nos processadores escalares com múltiplos estágios e superescalar, foi considerada uma implementação com o forwarding. Para o processador com múltiplos estágios, <<<< processador com multiplos estágios >>>
+Nos processadores escalares com múltiplos estágios e superescalar, foi considerada uma implementação com o forwarding. 
 No processador superescalar, foi verificado o caso em que uma instrução lê um registrador que foi escrito por uma instrução de load anterior, e também, se ocorre dependencia de instruções e essas instruções estão no mesmo estágio do pipeline. Esses hazard são os do tipo WAR e WAW.
 O processador superescalar suposto foi um que possui 5 estágios, em que há dois pipelines em paralelo, como mostrado na figura abaixo.
 
